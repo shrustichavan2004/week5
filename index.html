@@ -1,0 +1,644 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Hub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e1e2f, #2a2a4a);
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: linear-gradient(to right, #2a2a4a, #3b3b6a);
+            padding: 1.5rem;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ff6f61;
+            animation: neonGlow 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes neonGlow {
+            from { text-shadow: 0 0 5px #ff6f61, 0 0 10px #ff6f61; }
+            to { text-shadow: 0 0 10px #ff9a8b, 0 0 20px #ff9a8b; }
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 2rem;
+        }
+
+        nav a {
+            color: #e0e0e0;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+        }
+
+        nav a:hover, nav a.active {
+            background: #ff6f61;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        main {
+            margin-top: 100px;
+            padding: 2rem;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        section {
+            display: none;
+            animation: fadeInUp 0.8s ease-in-out;
+        }
+
+        section.active {
+            display: block;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hero, .explore, .about, .game {
+            text-align: center;
+        }
+
+        .hero p, .explore p.short-desc, .about p {
+            text-align: justify;
+            margin: 0 auto;
+            max-width: 800px;
+        }
+
+        .explore p.extra-info {
+            text-align: left;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 1.5rem;
+            color: #ff9a8b;
+            animation: slideIn 0.6s ease-in-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-30px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: linear-gradient(45deg, #ff6f61, #ff9a8b);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(255, 111, 97, 0.4);
+        }
+
+        .anime-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .anime-card {
+            background: #2a2a4a;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .anime-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(255, 111, 97, 0.3);
+        }
+
+        .anime-card img {
+            width: 250px;
+            height: auto;
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+
+        .anime-card:hover img {
+            transform: scale(1.08);
+        }
+
+        .card-content {
+            margin-top: 1rem;
+        }
+
+        .extra-info {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out;
+            color: #b0b0d0;
+            font-size: 0.9rem;
+        }
+
+        .anime-card:hover .extra-info {
+            max-height: 100px;
+        }
+
+        .info-btn {
+            background: linear-gradient(45deg, #ff6f61, #ff9a8b);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .info-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 10px rgba(255, 111, 97, 0.3);
+        }
+
+        .game {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #2a2a4a;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+            animation: bouncedIn 0.8s ease-in-out;
+        }
+
+        @keyframes bouncedIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+
+        .game input, .game button {
+            margin: 0.75rem;
+            padding: 0.75rem;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .game input {
+            background: #3b3b6a;
+            color: #e0e0e0;
+        }
+
+        .game input:focus {
+            outline: none;
+            box-shadow: 0 0 8px #ff9a8b;
+        }
+
+        .game button {
+            background: linear-gradient(45deg, #ff6f61, #ff9a8b);
+            color: white;
+            cursor: pointer;
+        }
+
+        .game button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 10px rgba(255, 111, 97, 0.3);
+        }
+
+        #timer {
+            font-size: 1.2rem;
+            color: #ff9a8b;
+            margin: 0.5rem;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        footer {
+            background: linear-gradient(to right, #2a2a4a, #3b3b6a);
+            color: #e0e0e0;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #2a2a4a;
+            padding: 2rem;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            animation: slideInModal 0.5s ease-in-out;
+        }
+
+        @keyframes slideInModal {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-content h2 {
+            color: #ff9a8b;
+            margin-bottom: 1rem;
+        }
+
+        .modal-content p {
+            text-align: justify;
+            color: #b0b0d0;
+        }
+
+        .modal-content img {
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+            border-radius: 10px;
+            margin: 1rem 0;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: #ff6f61;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 10px rgba(255, 111, 97, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            nav ul {
+                gap: 1rem;
+            }
+            .logo {
+                font-size: 1.5rem;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .anime-grid {
+                grid-template-columns: 1fr;
+            }
+            .modal-content {
+                width: 95%;
+                padding: 1.5rem;
+            }
+            .modal-content img {
+                max-width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">Anime Hub</div>
+            <ul>
+                <li><a href="#home" class="active nav-link">Home</a></li>
+                <li><a href="#explore" class="nav-link">Explore</a></li>
+                <li><a href="#about" class="nav-link">About</a></li>
+                <li><a href="#game" class="nav-link">Mini-Game</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section id="home" class="hero active">
+            <h1>Welcome to Anime Hub</h1>
+            <p>Discover the vibrant world of anime! Explore popular series, learn their stories, and test your knowledge with our interactive mini-game.</p>
+            <a href="#explore" class="btn nav-link">Explore Now</a>
+        </section>
+        <section id="explore" class="explore">
+            <h1>Explore Popular Anime</h1>
+            <div class="anime-grid">
+                <div class="anime-card">
+                    <img src="https://upload.wikimedia.org/wikipedia/en/9/94/NarutoCoverTankobon1.jpg" alt="Naruto">
+                    <div class="card-content">
+                        <h3>Naruto</h3>
+                        <p class="short-desc">Naruto Uzumaki, a young ninja, seeks recognition and dreams of becoming the Hokage, the leader of his village.</p>
+                        <p class="extra-info">Genre: Action, Adventure<br>Episodes: 220<br>Rating: 8.3/10</p>
+                        <button class="info-btn" data-anime="naruto">Learn More</button>
+                    </div>
+                </div>
+                <div class="anime-card">
+                    <img src="https://upload.wikimedia.org/wikipedia/en/6/6f/Death_Note_Vol_1.jpg" alt="Death Note">
+                    <div class="card-content">
+                        <h3>Death Note</h3>
+                        <p class="short-desc">Light Yagami uses a supernatural notebook to eliminate criminals.</p>
+                        <p class="extra-info">Genre: Psychological Thriller<br>Episodes: 37<br>Rating: 9.0/10</p>
+                        <button class="info-btn" data-anime="death-note">Learn More</button>
+                    </div>
+                </div>
+                <div class="anime-card">
+                    <img src="https://upload.wikimedia.org/wikipedia/en/c/c3/OnePunchMan_manga_cover.png" alt="One Punch Man">
+                    <div class="card-content">
+                        <h3>One Punch Man</h3>
+                        <p class="short-desc">Saitama defeats any opponent with one punch, seeking a real challenge.</p>
+                        <p class="extra-info">Genre: Action, Comedy<br>Episodes: 24+<br>Rating: 8.8/10</p>
+                        <button class="info-btn" data-anime="one-punch-man">Learn More</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="about" class="about">
+            <h1>About Anime Hub</h1>
+            <p>Anime Hub is your go-to destination for exploring anime culture. We provide insights into your favorite series and engage fans with interactive content like our Anime Character Guess mini-game.</p>
+            <p>Join us in celebrating the vibrant world of anime!</p>
+        </section>
+        <section id="game" class="game">
+            <h1>Anime Character Guess</h1>
+            <p id="description">Loading description...</p>
+            <p id="timer">Time Left: 30s</p>
+            <input type="text" id="guessInput" placeholder="Enter anime name">
+            <button id="submitGuess">Submit Guess</button>
+            <button id="nextQuestion">Next Question</button>
+            <p id="result"></p>
+            <p>Score: <span id="score">0</span></p>
+        </section>
+        <!-- Modal for Detailed Info -->
+        <div class="modal" id="infoModal">
+            <div class="modal-content">
+                <button class="close-btn" id="closeModal">Close</button>
+                <h2 id="modalTitle"></h2>
+                <img id="modalImage" src="" alt="" style="display: none;">
+                <p id="modalDescription"></p>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>© 2025 Anime Hub. All rights reserved.</p>
+    </footer>
+    <script>
+        // Navigation
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('section');
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').substring(1);
+                sections.forEach(section => {
+                    section.classList.remove('active');
+                    if (section.id === targetId) {
+                        section.classList.add('active');
+                    }
+                });
+                navLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            });
+        });
+
+        // Modal Data
+        const animeData = {
+            'naruto': {
+                title: 'Naruto',
+                description: 'Naruto Uzumaki is a young ninja from the Hidden Leaf Village, shunned for housing the Nine-Tails Fox spirit. He dreams of becoming Hokage, the village leader, to gain respect and protect his friends. Follow his journey through intense training, epic battles, and deep friendships as he faces challenges like the Akatsuki and his own inner demons.',
+                image: 'https://upload.wikimedia.org/wikipedia/en/9/94/NarutoCoverTankobon1.jpg'
+            },
+            'death-note': {
+                title: 'Death Note',
+                description: 'Light Yagami, a brilliant high school student, discovers the Death Note, a supernatural notebook that kills anyone whose name is written in it. Using it to eliminate criminals, he becomes the vigilante "Kira," sparking a global manhunt led by the enigmatic detective L. The series explores a tense cat-and-mouse game filled with moral dilemmas and psychological twists.',
+                image: 'https://upload.wikimedia.org/wikipedia/en/6/6f/Death_Note_Vol_1.jpg'
+            },
+            'one-punch-man': {
+                title: 'One Punch Man',
+                description: 'Saitama, an ordinary man turned superhero, gains the ability to defeat any opponent with a single punch after intense training. Despite his unmatched strength, he struggles with boredom and lack of recognition. Follow his hilarious and action-packed adventures as he joins the Hero Association and faces monstrous threats alongside other quirky heroes.',
+                image: 'https://upload.wikimedia.org/wikipedia/en/c/c3/OnePunchMan_manga_cover.png'
+            }
+        };
+
+        // Explore page interactivity
+        const infoButtons = document.querySelectorAll('.info-btn');
+        const modal = document.getElementById('infoModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalImage = document.getElementById('modalImage');
+        const modalDescription = document.getElementById('modalDescription');
+        const closeModal = document.getElementById('closeModal');
+
+        infoButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const animeKey = button.getAttribute('data-anime');
+                const data = animeData[animeKey];
+                modalTitle.textContent = data.title;
+                modalDescription.textContent = data.description;
+                modalImage.src = data.image;
+                modalImage.alt = data.title;
+                modalImage.style.display = 'block';
+                modal.style.display = 'flex';
+            });
+        });
+
+        closeModal.addEventListener('click', () => {
+            modal.style.display = 'none';
+            modalImage.style.display = 'none';
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                modalImage.style.display = 'none';
+            }
+        });
+
+        // Mini-game logic
+        const questions = [
+            {
+                description: "A young ninja seeks recognition and dreams of becoming the leader of his village.",
+                answer: "Naruto"
+            },
+            {
+                description: "A student uses a notebook to eliminate criminals by writing their names.",
+                answer: "Death Note"
+            },
+            {
+                description: "A hero defeats any opponent with one punch and seeks a real challenge.",
+                answer: "One Punch Man"
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let timeLeft = 30;
+        let timer;
+
+        const descriptionElement = document.getElementById('description');
+        const guessInput = document.getElementById('guessInput');
+        const submitGuess = document.getElementById('submitGuess');
+        const resultElement = document.getElementById('result');
+        const scoreElement = document.getElementById('score');
+        const nextQuestionButton = document.getElementById('nextQuestion');
+        const timerElement = document.getElementById('timer');
+
+        if (descriptionElement) {
+            loadQuestion();
+            startTimer();
+        }
+
+        function loadQuestion() {
+            descriptionElement.textContent = questions[currentQuestion].description;
+            guessInput.value = '';
+            resultElement.textContent = '';
+            timeLeft = 30;
+            timerElement.textContent = `Time Left: ${timeLeft}s`;
+            guessInput.disabled = false;
+            submitGuess.disabled = false;
+            clearInterval(timer);
+            startTimer();
+        }
+
+        function startTimer() {
+            timer = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = `Time Left: ${timeLeft}s`;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    resultElement.textContent = `Time's up! The correct answer was ${questions[currentQuestion].answer}.`;
+                    guessInput.disabled = true;
+                    submitGuess.disabled = true;
+                    setTimeout(() => {
+                        currentQuestion = (currentQuestion + 1) % questions.length;
+                        loadQuestion();
+                    }, 2000);
+                }
+            }, 1000);
+        }
+
+        if (submitGuess) {
+            submitGuess.addEventListener('click', () => {
+                const userGuess = guessInput.value.trim().toLowerCase();
+                const correctAnswer = questions[currentQuestion].answer.toLowerCase();
+                clearInterval(timer);
+                if (userGuess === correctAnswer) {
+                    resultElement.textContent = 'Correct!';
+                    score += Math.max(10, Math.floor(timeLeft / 3));
+                    scoreElement.textContent = score;
+                } else {
+                    resultElement.textContent = `Wrong! The correct answer was ${questions[currentQuestion].answer}.`;
+                }
+                guessInput.disabled = true;
+                submitGuess.disabled = true;
+                setTimeout(() => {
+                    currentQuestion = (currentQuestion + 1) % questions.length;
+                    loadQuestion();
+                }, 2000);
+            });
+        }
+
+        if (nextQuestionButton) {
+            nextQuestionButton.addEventListener('click', () => {
+                clearInterval(timer);
+                currentQuestion = (currentQuestion + 1) % questions.length;
+                loadQuestion();
+            });
+        }
+    </script>
+</body>
+</html>
